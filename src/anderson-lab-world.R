@@ -5,14 +5,18 @@ library(rvest)
 library(tidyverse)
 library(xml2)
 
+# Save variable
+SAVE <- FALSE
+
 # Scrape the data from andersonlab.info/people to get the links for all people
 al.people <- read_html("http://andersonlab.info/people")
 al.people.links <- al.people %>%
   html_elements("a") %>% 
   xml_find_all("//a[contains(@class, 'link-block')]")%>%
   html_attr("href") %>% 
-  head(-2)
+  head(-2) # Drop the last two links as they aren't people
 
+# Iterate through all people links and scrape the "name (country)" field
 person.header.list <- c()
 for (person in al.people.links){
   person <- read_html(paste0("http://andersonlab.info",person))
@@ -23,6 +27,7 @@ for (person in al.people.links){
   person.header.list <- c(person.header.list, person.header)
 }
 
+# Collate the data into a dataframe
 anderson.lab.people.df <- tibble(people=person.header.list) %>% 
   separate(col = people, into = c('Name',
                                   'Country'),
@@ -30,12 +35,9 @@ anderson.lab.people.df <- tibble(people=person.header.list) %>%
   separate(col=Name, into=c('First_name',
                             'Last_name'),
            extra='merge') %>% 
-  mutate(Country=str_remove(Country, '\\)'))
-
-anderson.lab.people.df <- anderson.lab.people.df %>% 
+  mutate(Country=str_remove(Country, '\\)')) %>% 
   left_join(tibble(world), by=c("Country"='name_long'))
 
-anderson.lab.people.df
 
 # Plot the data on the map
 ggplot(data=anderson.lab.people.df) + 
@@ -49,5 +51,7 @@ ggplot(data=anderson.lab.people.df) +
         axis.title.y = element_blank(),
         plot.margin=grid::unit(c(0,0,0,0), "mm"))
 
-ggsave('./plots/anderson-lab-world.png',width = 14, height=7)
-
+# Save the plot
+if (SAVE){
+  ggsave('./plots/anderson-lab-world.png',width = 14, height=7)
+}
