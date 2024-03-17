@@ -6,7 +6,7 @@ library(tidyverse)
 library(xml2)
 
 # Save variable
-SAVE <- FALSE
+SAVE <- TRUE
 
 # Scrape the data from andersonlab.info/people to get the links for all people
 al.people <- read_html("http://andersonlab.info/people")
@@ -31,27 +31,34 @@ for (person in al.people.links){
 anderson.lab.people.df <- tibble(people=person.header.list) %>% 
   separate(col = people, into = c('Name',
                                   'Country'),
-           sep = ' \\(') %>% 
+           sep = '\\((?!.*\\()',) %>% 
   separate(col=Name, into=c('First_name',
                             'Last_name'),
-           extra='merge') %>% 
+           extra='merge', sep=' ') %>% 
   mutate(Country=str_remove(Country, '\\)')) %>% 
   left_join(tibble(world), by=c("Country"='name_long'))
 
 
 # Plot the data on the map
 ggplot(data=anderson.lab.people.df) + 
-  geom_sf(data=world,aes(geometry = geom), fill='#93cccb') +
-  geom_sf(aes(geometry = geom), fill='#F17925') +
-  geom_label_repel(aes(label=First_name,geometry=geom),
+  # geom_sf(data=world,aes(geometry = geom), fill='#93cccb') +
+  # geom_sf(aes(geometry = geom), fill='#F17925') +
+  geom_sf(data=world,aes(geometry = geom), fill='grey') +
+  geom_sf(aes(geometry = geom, fill=Country)) +
+  geom_text_repel(aes(label=First_name,geometry=geom, colour=Country),
                    stat='sf_coordinates',max.iter = 200000,max.time = 10,
-                   force = 4, size = 5,min.segment.length = 0,max.overlaps = 30) +
+                   force = 4, size = 4,min.segment.length = 0,max.overlaps = 30,
+                  bg.color='white', bg.r=0.1) +
   theme_classic() +
+  scale_colour_manual(values = rep_len(c("#f17925", "#93cccb", "#ed474d"),
+                                    length(unique(anderson.lab.people.df$Country))),guide='none') +
+  scale_fill_manual(values = rep_len(c("#f17925", "#93cccb", "#ed474d"),
+                                    length(unique(anderson.lab.people.df$Country))),guide='none') +
   theme(axis.title.x = element_blank(),
         axis.title.y = element_blank(),
         plot.margin=grid::unit(c(0,0,0,0), "mm"))
 
 # Save the plot
 if (SAVE){
-  ggsave('./plots/anderson-lab-world.png',width = 14, height=7)
+  ggsave('~/Documents/PhD_work/other/group-website/website-scripts/plots/anderson-lab-world.png',width = 14, height=7)
 }
